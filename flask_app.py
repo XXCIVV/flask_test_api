@@ -1,5 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
+import jsonpickle
+import numpy as np
 import os
+import cv2
 
 app = Flask(__name__)
 
@@ -15,17 +18,20 @@ def index():
     return "BU PROJECT MDT TESTING"
 
 @app.route('/uploads', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:  # Check if the 'file' key exists in the request
-        return jsonify({"error": "No file part in the request"}), 400
+def decode():
+    r = request
+    nparray = np.fromstring(r.data, np.uint8)
 
-    file = request.files['file']  # Get the file from the request
+    # decode
+    img = cv2.imdecode(nparray, cv2.IMREAD_COLOR)
 
-    # Save the file to the UPLOAD_FOLDER
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-    file.save(file_path)  # Save file to disk
+    # send to client
+    response = {'message': 'image received. size={}x{}'.format(img.shape[1], img.shape[0])}
 
-    return jsonify({"message": "File uploaded successfully", "file_path": file_path}), 200
+    # encode using jsonpickle
+    response_pickled = jsonpickle.encode(response)
+
+    return Response(response=response_pickled, status=200, mimetype="/application/json")
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=80)
